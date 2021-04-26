@@ -1,0 +1,1 @@
+from trainer.cls_trainer import TrainerClassification
