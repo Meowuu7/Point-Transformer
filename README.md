@@ -15,13 +15,13 @@
 
   ```shell
   python3 main_training.py --num_feat=${num_feat} \ # number of features used for points in the shape cloud
-  												 --device=${device} \ # which gpu to use in the training process
-  												 --batch_size=${batch_size} \ # batch size
-  												 --dp_ratio=${dropout_ratio} \ # dropout ratio
-  												 --attn_mult=${attn_mult} \ # for point-transformer layer
-  												 [--use_abs_pos] \ # whether to use absolute position information in point-transformer layer
-  												 [--with_normal] \ # whether to use points' normal information in point-transformer layer
-  												 [--more_aug] # whether to use more data augmentation in training process
+  --device=${device} \ # which gpu to use in the training process
+  --batch_size=${batch_size} \ # batch size
+  --dp_ratio=${dropout_ratio} \ # dropout ratio
+  --attn_mult=${attn_mult} \ # for point-transformer layer
+  [--use_abs_pos] \ # whether to use absolute position information in point-transformer layer
+  [--with_normal] \ # whether to use points' normal information in point-transformer layer
+  [--more_aug] # whether to use more data augmentation in training process
   ```
 
 #### Results
