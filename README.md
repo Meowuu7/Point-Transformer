@@ -19,6 +19,7 @@
   --batch_size=${batch_size} \ # batch size
   --dp_ratio=${dropout_ratio} \ # dropout ratio
   --attn_mult=${attn_mult} \ # for point-transformer layer
+  [--use_sgd] \ # use SGD or Adam optimizer
   [--use_abs_pos] \ # whether to use absolute position information in point-transformer layer
   [--with_normal] \ # whether to use points' normal information in point-transformer layer
   [--more_aug] # whether to use more data augmentation in training process
