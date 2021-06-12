@@ -2,6 +2,7 @@ import torch
 # from torch_cluster import fps
 import torch.nn as nn
 from .utils import farthest_point_sampling, get_knn_idx, batched_index_select
+# from .utils import three_interpolate, three_nn
 
 
 class TransitionDown(nn.Module):
@@ -56,4 +57,62 @@ class TransitionDown(nn.Module):
         sampled_pos = batched_index_select(values=pos.view(bz * N, -1), indices=fps_idx, dim=0)
         sampled_pos = sampled_pos.view(bz, n_sampling, -1)
         return sampled_knn_x, sampled_pos # return the sampled knn
+
+
+class TransitionUp(nn.Module):
+    def __init__(self, fea_in: int, fea_out: int):
+        super(TransitionUp, self).__init__()
+        self.mlp_in = nn.Sequential(
+            nn.Linear(fea_in, fea_out, bias=True),
+            nn.BatchNorm1d(fea_out),
+            nn.ReLU()
+        )
+
+        self.mlp_out = nn.Sequential(
+            nn.Linear(fea_out, fea_out, bias=True),
+            nn.BatchNorm1d(fea_out),
+            nn.ReLU()
+        )
+
+    def apply_module_with_bn(self, x, modle):
+        for layer in modle:
+            if isinstance(layer, nn.BatchNorm1d):
+                x = torch.transpose(x, 1, 2)
+                x = layer(x)
+                x = torch.transpose(x, 1, 2)
+            else:
+                x = layer(x)
+        return x
+
+    def forward(self, x1, p1, x2, p2):
+        x1 = self.apply_module_with_bn(x1, self.mlp_in)
+        # dist, idx = three_nn(p2, p1)
+        # p2.size() = bz x N2 x 3
+        dist = p2[:, :, None, :] - p1[:, None, :, :]
+        dist = torch.norm(dist, dim=-1, p=2, keepdim=False)
+        # dist.size() = bz x N2 x N1
+        # print(dist.size())
+        dist, idx = dist.topk(3, dim=-1, largest=False)
+        # bz x N2 x 3
+        # print(dist.size(), idx.size())
+        dist_recip = 1.0 / (dist + 1e-8)
+        norm = torch.sum(dist_recip, dim=2, keepdim=True)
+        weight = dist_recip / norm
+        # weight.size() = bz x N2 x 3; idx.size() = bz x N2 x 3
+        three_nearest_features = batched_index_select(x1, idx, dim=1) # 1 is the idx dimension
+        # three_features = bz x N2 x 3 x fea_dim; x1 = bz x N1 x fea_dim;
+        # print(three_nearest_features.size(), weight.size())
+        interpolated_feats = torch.sum(three_nearest_features * weight[:, :, :, None], dim=2, keepdim=False)
+        # interpolated_feats = bz x N2 x fea_dim
+        # interpolated_feats = three_interpolate(
+        #     x1.transpose(1, 2).contiguous(), idx.contiguous(), weight.contiguous()
+        # )
+        x2 = self.apply_module_with_bn(x2, self.mlp_out)
+        # x2 = self.mlp_out(x2.transpose(1, 2).contiguous())
+        # print(interpolated_feats.size(), x2.size())
+        y = interpolated_feats + x2 # interpolated_feats.size() and x2.size()
+        # y = interpolated_feats.transpose(1, 2) + x2 #.transpose(1, 2)
+        return y.contiguous(), p2
+
+
 
